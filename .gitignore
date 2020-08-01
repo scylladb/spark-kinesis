@@ -1,0 +1,10 @@
+/target/
+/bin/
+*.class
+*.log
+.classpath
+.idea
+.wercker
+project/target
+project/project
+lib_managed*/
