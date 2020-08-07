@@ -19,9 +19,17 @@ package org.apache.spark.streaming.kinesis
 import java.util.UUID
 import java.util.concurrent.{ConcurrentHashMap, ExecutorService}
 
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder
+import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
+import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder
+import com.amazonaws.services.dynamodbv2.{
+  AmazonDynamoDBClientBuilder,
+  AmazonDynamoDBStreamsClientBuilder
+}
 import com.amazonaws.services.dynamodbv2.model.DescribeTableRequest
-import com.amazonaws.services.dynamodbv2.streamsadapter.StreamsWorkerFactory
+import com.amazonaws.services.dynamodbv2.streamsadapter.{
+  AmazonDynamoDBStreamsAdapterClient,
+  StreamsWorkerFactory
+}
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.{
   IRecordProcessor,
   IRecordProcessorCheckpointer,
@@ -32,6 +40,8 @@ import com.amazonaws.services.kinesis.clientlibrary.lib.worker.{
   Worker
 }
 import com.amazonaws.services.kinesis.model.Record
+import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder
+import com.amazonaws.services.securitytoken.model.GetCallerIdentityRequest
 import org.apache.spark.internal.Logging
 import org.apache.spark.storage.{StorageLevel, StreamBlockId}
 import org.apache.spark.streaming.Duration
@@ -190,9 +200,17 @@ private[kinesis] class KinesisReceiver[T](
         dynamoDBCreds.map(_.provider).getOrElse(kinesisProvider),
         cloudWatchCreds.map(_.provider).getOrElse(kinesisProvider),
         workerId
-      ).withKinesisEndpoint(endpointUrl)
-        .withTaskBackoffTimeMillis(500)
+      ).withTaskBackoffTimeMillis(500)
         .withRegionName(regionName)
+
+      val identity = AWSSecurityTokenServiceClientBuilder
+        .standard()
+        .withCredentials(kinesisProvider)
+        .withRegion(regionName)
+        .build()
+        .getCallerIdentity(new GetCallerIdentityRequest)
+        .toString
+      log.info(s"Configured identity: ${identity}")
 
       // Update the Kinesis client lib config with timestamp
       // if InitialPositionInStream.AT_TIMESTAMP is passed
@@ -224,10 +242,33 @@ private[kinesis] class KinesisReceiver[T](
         .config(kinesisClientLibConfiguration)
         .build()
     } else {
+      val streamsAdapter = new AmazonDynamoDBStreamsAdapterClient(
+        kinesisProvider
+      )
+
+      val cloudWatchClient = AmazonCloudWatchClientBuilder.standard
+        .withCredentials(kinesisProvider)
+        .withClientConfiguration(
+          kinesisClientLibConfiguration.getCloudWatchClientConfiguration
+        )
+        .withRegion(kinesisClientLibConfiguration.getRegionName)
+        .build
+
+      val dynamoDBClient = AmazonDynamoDBClientBuilder
+        .standard()
+        .withCredentials(kinesisProvider)
+        .withClientConfiguration(
+          kinesisClientLibConfiguration.getDynamoDBClientConfiguration
+        )
+        .withRegion(kinesisClientLibConfiguration.getRegionName)
+        .build
+
       StreamsWorkerFactory.createDynamoDbStreamsWorker(
         new V1ToV2RecordProcessorFactoryAdapter(recordProcessorFactory),
         kinesisClientLibConfiguration,
-        (null: ExecutorService)
+        streamsAdapter,
+        dynamoDBClient,
+        cloudWatchClient
       )
     }
 
