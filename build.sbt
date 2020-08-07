@@ -7,8 +7,8 @@ lazy val root = (project in file("."))
       scalaVersion := "2.11.12",
       libraryDependencies ++= Seq(
         "org.apache.sparK" %% "spark-streaming" % "2.4.4" % "provided",
-        "com.amazonaws" % "dynamodb-streams-kinesis-adapter" % "1.5.2",
-        "com.amazonaws" % "aws-java-sdk-sts" % "1.11.728",
+        "com.amazonaws" % "dynamodb-streams-kinesis-adapter" % "1.5.2" % "provided",
+        "com.amazonaws" % "aws-java-sdk-sts" % "1.11.728" % "provided",
         "com.amazonaws" % "amazon-kinesis-producer" % "0.14.0" % "test",
         "org.scalatest" %% "scalatest" % "3.0.3" % "test",
         "org.scalacheck" %% "scalacheck" % "1.13.5" % "test",
