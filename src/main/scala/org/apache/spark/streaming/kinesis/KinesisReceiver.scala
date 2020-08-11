@@ -201,6 +201,10 @@ private[kinesis] class KinesisReceiver[T](
         cloudWatchCreds.map(_.provider).getOrElse(kinesisProvider),
         workerId
       ).withTaskBackoffTimeMillis(500)
+        .withIdleTimeBetweenReadsInMillis(500)
+        .withMaxRecords(1000)
+        .withFailoverTimeMillis(60000)
+        .withParentShardPollIntervalMillis(10000)
         .withRegionName(regionName)
 
       val identity = AWSSecurityTokenServiceClientBuilder
