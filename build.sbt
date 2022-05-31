@@ -4,7 +4,7 @@ lazy val root = (project in file("."))
       organization := "org.apache.spark",
       name := "spark-streaming-kinesis-asl",
       version := "2.4.4",
-      scalaVersion := "2.11.12",
+      scalaVersion := "2.12.11",
       libraryDependencies ++= Seq(
         "org.apache.spark" %% "spark-streaming" % "2.4.4" % "provided",
         "com.amazonaws" % "dynamodb-streams-kinesis-adapter" % "1.5.2" % "provided",
