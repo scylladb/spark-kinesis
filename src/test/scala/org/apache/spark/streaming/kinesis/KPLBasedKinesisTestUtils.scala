@@ -18,12 +18,15 @@ package org.apache.spark.streaming.kinesis
 
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
-import java.util.concurrent.Executors
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import com.amazonaws.services.kinesis.producer.{KinesisProducerConfiguration, UserRecordResult, KinesisProducer => KPLProducer}
+
+import com.amazonaws.services.kinesis.producer.{KinesisProducer => KPLProducer,
+  KinesisProducerConfiguration, UserRecordResult}
 import com.google.common.util.concurrent.{FutureCallback, Futures}
+
+import org.apache.spark.util.ThreadUtils
 
 private[kinesis] class KPLBasedKinesisTestUtils(streamShardCount: Int = 2)
     extends KinesisTestUtils(streamShardCount) {
@@ -38,7 +41,6 @@ private[kinesis] class KPLBasedKinesisTestUtils(streamShardCount: Int = 2)
 
 /** A wrapper for the KinesisProducer provided in the KPL. */
 private[kinesis] class KPLDataGenerator(regionName: String) extends KinesisDataGenerator {
-  private val executor = Executors.newSingleThreadExecutor()
 
   private lazy val producer: KPLProducer = {
     val conf = new KinesisProducerConfiguration()
@@ -67,9 +69,9 @@ private[kinesis] class KPLDataGenerator(regionName: String) extends KinesisDataG
           sentSeqNumbers += ((num, seqNumber))
         }
       }
-      Futures.addCallback(future, kinesisCallBack, executor)
+      Futures.addCallback(future, kinesisCallBack, ThreadUtils.sameThreadExecutorService)
     }
     producer.flushSync()
-    shardIdToSeqNumbers.toMap
+    shardIdToSeqNumbers.mapValues(_.toSeq).toMap
   }
 }
